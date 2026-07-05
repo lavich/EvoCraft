@@ -50,31 +50,31 @@ grow_vertical = 2
 theme_override_constants/separation = 4
 
 [node name="PointerBtn" type="Button" parent="HUD/ToolPalette"]
-custom_minimum_size = Vector2(120, 52)
+custom_minimum_size = Vector2(80, 36)
 layout_mode = 2
 size_flags_horizontal = 6
 text = "Inspect"
 
 [node name="TerrainBtn" type="Button" parent="HUD/ToolPalette"]
-custom_minimum_size = Vector2(120, 52)
+custom_minimum_size = Vector2(80, 36)
 layout_mode = 2
 size_flags_horizontal = 6
 text = "Terrain"
 
 [node name="ImpulseBtn" type="Button" parent="HUD/ToolPalette"]
-custom_minimum_size = Vector2(120, 52)
+custom_minimum_size = Vector2(80, 36)
 layout_mode = 2
 size_flags_horizontal = 6
 text = "Impulse"
 
 [node name="BreedBtn" type="Button" parent="HUD/ToolPalette"]
-custom_minimum_size = Vector2(120, 52)
+custom_minimum_size = Vector2(80, 36)
 layout_mode = 2
 size_flags_horizontal = 6
 text = "Breed"
 
 [node name="RelocateBtn" type="Button" parent="HUD/ToolPalette"]
-custom_minimum_size = Vector2(120, 52)
+custom_minimum_size = Vector2(80, 36)
 layout_mode = 2
 size_flags_horizontal = 6
 text = "Relocate"
