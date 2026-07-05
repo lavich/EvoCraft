@@ -36,11 +36,17 @@ offset_right = 400.0
 offset_bottom = 200.0
 
 [node name="ToolPalette" type="HBoxContainer" parent="HUD"]
-layout_mode = 0
-offset_left = 100.0
-offset_top = 680.0
-offset_right = 600.0
-offset_bottom = 720.0
+layout_mode = 3
+anchors_preset = 15
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -220.0
+offset_top = -44.0
+offset_right = 220.0
+offset_bottom = -4.0
+grow_horizontal = 2
 theme_override_constants/separation = 4
 
 [node name="PointerBtn" type="Button" parent="HUD/ToolPalette"]
@@ -74,20 +80,30 @@ custom_minimum_size = Vector2(80, 36)
 text = "Relocate"
 
 [node name="InspectPopup" type="Panel" parent="HUD"]
-layout_mode = 0
-offset_left = 800.0
-offset_top = 60.0
-offset_right = 1180.0
-offset_bottom = 360.0
+layout_mode = 3
+anchors_preset = 0
+anchor_left = 0.35
+anchor_top = 0.15
+anchor_right = 0.65
+anchor_bottom = 0.5
+offset_left = 0.0
+offset_top = 0.0
+offset_right = 0.0
+offset_bottom = 0.0
 visible = false
 theme_override_styles/panel = SubResource(1)
 
 [node name="InspectLabel" type="RichTextLabel" parent="HUD/InspectPopup"]
-layout_mode = 0
-offset_left = 8
-offset_top = 8
-offset_right = 372
-offset_bottom = 292
+layout_mode = 1
+anchors_preset = 15
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 8.0
+offset_top = 8.0
+offset_right = -8.0
+offset_bottom = -8.0
 theme_override_colors/default_color = Color(1, 1, 1, 1)
 theme_override_font_sizes/normal_font_size = 12
 bbcode_enabled = true
