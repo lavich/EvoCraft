@@ -127,6 +127,42 @@
 
 ---
 
+## Testing strategy
+
+**Tool**: GUT (Godot Unit Test) — аддон для тестов на GDScript.
+
+### Что тестировать
+
+**Unit-тесты** (каждый шаг):
+- DNA: crossover, mutation, gene clamping
+- Agent: sensor reads, action selection, energy drain
+- Simulation: tick loop, resource regen, death conditions
+- World: tile types, fragment spawning
+
+**Интеграционные** (после шага 5):
+- Agent moves → collects fragment → energy increases
+- Two agents → one attacks → health decreases
+- Population grows → resource scarcity → population crash
+
+**Регрессионные** (перед каждым шагом):
+- Прогон всех тестов после изменений
+
+### Как организовать
+
+```
+res://test/
+  unit/
+    test_dna.gd
+    test_agent.gd
+    test_world.gd
+  integration/
+    test_lifecycle.gd
+```
+
+Запуск: `Gut > Run All` в редакторе или через CLI при CI.
+
+---
+
 ## Build order (recommended)
 
 | Step | What | Est. time |
