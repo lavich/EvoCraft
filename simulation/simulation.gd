@@ -112,18 +112,22 @@ func process_agents() -> void:
 
 func decide_action(a: AgentData) -> void:
 	var w = a.dna.sensor_weights
-	var d = a.dna.action_priorities
+	var p = a.dna.action_priorities
+	var t = a.dna.thresholds
 
 	var nearest_fragment_dist = sense_nearest_fragment(a)
 	var nearest_agent_dist = sense_nearest_agent(a)
 	var energy_ratio = a.energy / a.max_energy
 
-	var move_w = d[0] * w[0]
-	var collect_w = d[1] * w[0] * (1.0 if nearest_fragment_dist < 1.5 else 0.1)
-	var idle_w = d[2] * 0.5
-	var reproduce_w = d[3] * (1.0 if energy_ratio > a.dna.thresholds[1] else 0.0)
-	var attack_w = d[4] * (1.0 if nearest_agent_dist < 1.5 and energy_ratio > 0.5 else 0.0)
-	var evade_w = d[5] * (1.0 if nearest_agent_dist < 2.0 and energy_ratio < a.dna.thresholds[2] else 0.0)
+	# Each action uses sensor weights that are relevant to it:
+	# w[0] = fragment dist  |  w[1] = agent dist  |  w[2] = energy level
+	# w[3] = direction to cluster  |  w[4] = agent density
+	var move_w = p[0] * (w[0] + w[3]) * 0.5
+	var collect_w = p[1] * w[0] * (1.0 if nearest_fragment_dist < 1.5 else 0.1)
+	var idle_w = p[2] * (1.0 - w[2])
+	var reproduce_w = p[3] * w[2] * (1.0 if energy_ratio > t[1] else 0.0)
+	var attack_w = p[4] * w[1] * (1.0 if nearest_agent_dist < 1.5 and energy_ratio > 0.5 else 0.0)
+	var evade_w = p[5] * w[1] * (1.0 if nearest_agent_dist < 2.0 and energy_ratio < t[2] else 0.0)
 
 	var actions = [
 		[move_w, 0], [collect_w, 1], [idle_w, 2],
@@ -174,6 +178,15 @@ func do_move(a: AgentData) -> void:
 				if d < best_dist:
 					best_dist = d
 					best_dir = Vector2i(dx, dy)
+	if best_dir == Vector2i.ZERO:
+		var dirs = [Vector2i(1,0), Vector2i(-1,0), Vector2i(0,1), Vector2i(0,-1),
+			Vector2i(1,1), Vector2i(-1,1), Vector2i(1,-1), Vector2i(-1,-1)]
+		dirs.shuffle()
+		for d in dirs:
+			var nx = a.x + d.x; var ny = a.y + d.y
+			if nx < 0 or nx >= grid_size or ny < 0 or ny >= grid_size: continue
+			if grid[nx][ny].type == TileType.RAZLOM: continue
+			best_dir = d; break
 	if best_dir != Vector2i.ZERO:
 		a.x += best_dir.x
 		a.y += best_dir.y

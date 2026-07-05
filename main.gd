@@ -10,13 +10,6 @@ var drag_start := Vector2.ZERO
 
 const TILE_PX := 32
 const AGENT_RADIUS := 4
-const TILE_COLORS := {
-	0: Color(0.5, 0.75, 0.5),
-	1: Color(0.3, 0.5, 0.3),
-	2: Color(0.7, 0.6, 0.4),
-	3: Color(0.2, 0.2, 0.2),
-}
-
 func _ready() -> void:
 	sim.init_world()
 
@@ -32,7 +25,7 @@ func draw_grid() -> void:
 	for x in sim.grid_size:
 		for y in sim.grid_size:
 			var cell = sim.grid[x][y]
-			var color = TILE_COLORS[cell.type]
+			var color = sim.TILE_COLORS[cell.type]
 			var pos = world_to_screen(x, y)
 			draw_rect(Rect2(pos, Vector2(TILE_PX, TILE_PX)), color)
 			if cell.fragments > 0:
