@@ -26,6 +26,10 @@ var tick_count := 0
 var running := true
 var next_id := 0
 
+var _agent_buckets: Dictionary
+const BUCKET_SIZE := 5
+const SENSOR_RANGE := 8
+
 const TILE_COLORS := {
 	TileType.RAVNINA: Color(0.5, 0.75, 0.5),
 	TileType.TRYASINA: Color(0.3, 0.5, 0.3),
@@ -69,6 +73,7 @@ func init_world() -> void:
 				type = t,
 				fragments = randi() % 4 + 1,
 				regen_boost = 0.0,
+				regen_delay = 0,
 			})
 	agents = []
 	for i in 30:
@@ -105,6 +110,9 @@ func regen_fragments() -> void:
 		for y in grid_size:
 			var cell = grid[x][y]
 			if cell.type == TileType.RAZLOM: continue
+			if cell.regen_delay > 0:
+				cell.regen_delay -= 1
+				continue
 			var rate = FRAGMENT_REGEN_BASE + cell.regen_boost
 			if cell.type == TileType.TRYASINA: rate *= 2
 			if randf() < rate:
@@ -113,6 +121,7 @@ func regen_fragments() -> void:
 				cell.regen_boost = max(0.0, cell.regen_boost - 0.05)
 
 func process_agents() -> void:
+	_rebuild_buckets()
 	for a in agents:
 		if a.energy <= 0 or a.health <= 0: continue
 		a.age += 1
@@ -158,24 +167,24 @@ func decide_action(a: AgentData) -> void:
 		5: do_evade(a)
 
 func sense_nearest_fragment(a: AgentData) -> float:
-	var best := 999.0
+	var best_dist_sq := 999.0
 	for dx in range(-3, 4):
 		for dy in range(-3, 4):
 			var nx = a.x + dx; var ny = a.y + dy
 			if nx < 0 or nx >= grid_size or ny < 0 or ny >= grid_size: continue
 			if grid[nx][ny].fragments > 0:
-				var d = sqrt(dx*dx + dy*dy)
-				if d < best: best = d
-	return best
+				var d_sq = dx*dx + dy*dy
+				if d_sq < best_dist_sq: best_dist_sq = d_sq
+	return sqrt(best_dist_sq)
 
 func sense_nearest_agent(a: AgentData) -> float:
-	var best := 999.0
-	for other in agents:
+	var best_sq := SENSOR_RANGE * SENSOR_RANGE
+	for other in _nearby_agents(a.x, a.y, SENSOR_RANGE):
 		if other.id == a.id: continue
-		if other.energy <= 0: continue
-		var d = sqrt(pow(other.x - a.x, 2) + pow(other.y - a.y, 2))
-		if d < best: best = d
-	return best
+		var dx = other.x - a.x; var dy = other.y - a.y
+		var d_sq = dx*dx + dy*dy
+		if d_sq < best_sq: best_sq = d_sq
+	return sqrt(best_sq)
 
 func do_move(a: AgentData) -> void:
 	var best_dir = Vector2i(0, 0)
@@ -217,6 +226,8 @@ func do_collect(a: AgentData) -> void:
 		var amount = ENERGY_PER_FRAGMENT * eff
 		a.energy = min(a.energy + amount, a.max_energy)
 		cell.fragments -= 1
+		if cell.fragments == 0:
+			cell.regen_delay = 300
 
 func do_idle(a: AgentData) -> void:
 	a.energy -= IDLE_COST
@@ -225,14 +236,13 @@ func do_reproduce(a: AgentData) -> void:
 	if a.cooldown > 0: return
 	var partner: AgentData = null
 	var repro_threshold = REPRODUCE_COST / max(a.breeding_boost, 0.1)
-	for other in agents:
-		if other.id == a.id: continue
-		if other.energy <= 0: continue
-		var d = sqrt(pow(other.x - a.x, 2) + pow(other.y - a.y, 2))
-		if d < 2.0 and other.energy > repro_threshold:
+	for other in _nearby_agents(a.x, a.y, 2):
+		if other.id == a.id or other.energy <= 0: continue
+		if other.energy > repro_threshold:
 			partner = other; break
 	if partner == null: return
 
+	if agents.size() >= 150: return
 	var child = AgentData.new()
 	child.id = next_id; next_id += 1
 	child.x = a.x + randi() % 3 - 1
@@ -254,11 +264,10 @@ func do_reproduce(a: AgentData) -> void:
 	partner.cooldown = COOLDOWN_TICKS
 
 func do_attack(a: AgentData) -> void:
-	for other in agents:
-		if other.id == a.id: continue
-		if other.energy <= 0: continue
-		var d = sqrt(pow(other.x - a.x, 2) + pow(other.y - a.y, 2))
-		if d < 1.5:
+	for other in _nearby_agents(a.x, a.y, 2):
+		if other.id == a.id or other.energy <= 0: continue
+		var dx = other.x - a.x; var dy = other.y - a.y
+		if dx*dx + dy*dy < 2.25:
 			other.health -= 20.0
 			a.energy -= ATTACK_COST
 			return
@@ -271,14 +280,42 @@ func do_evade(a: AgentData) -> void:
 		if nx < 0 or nx >= grid_size or ny < 0 or ny >= grid_size: continue
 		if grid[nx][ny].type == TileType.RAZLOM: continue
 		var danger := false
-		for other in agents:
-			if other.id == a.id: continue
-			if other.energy <= 0: continue
-			if abs(other.x - nx) <= 1 and abs(other.y - ny) <= 1: danger = true; break
+		for other in _nearby_agents(nx, ny, 1):
+			if other.id == a.id or other.energy <= 0: continue
+			danger = true; break
 		if not danger:
 			a.x = nx; a.y = ny
 			a.energy -= EVADE_COST
 			return
+
+func _bucket_key(x: int, y: int) -> Vector2i:
+	return Vector2i(x / BUCKET_SIZE, y / BUCKET_SIZE)
+
+func _rebuild_buckets() -> void:
+	_agent_buckets.clear()
+	for a in agents:
+		if a.energy <= 0: continue
+		var bk = _bucket_key(a.x, a.y)
+		if not _agent_buckets.has(bk):
+			_agent_buckets[bk] = []
+		_agent_buckets[bk].append(a)
+
+func _nearby_agents(x: int, y: int, radius: int) -> Array[AgentData]:
+	var result: Array[AgentData] = []
+	var min_bx = max(0, x - radius) / BUCKET_SIZE
+	var max_bx = min(grid_size - 1, x + radius) / BUCKET_SIZE
+	var min_by = max(0, y - radius) / BUCKET_SIZE
+	var max_by = min(grid_size - 1, y + radius) / BUCKET_SIZE
+	for bx in range(min_bx, max_bx + 1):
+		for by in range(min_by, max_by + 1):
+			var bk = Vector2i(bx, by)
+			var bucket = _agent_buckets.get(bk)
+			if bucket == null: continue
+			for a in bucket:
+				var dx = a.x - x; var dy = a.y - y
+				if dx*dx + dy*dy <= radius*radius:
+					result.append(a)
+	return result
 
 func cleanup_dead() -> void:
 	var alive: Array[AgentData] = []

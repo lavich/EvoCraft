@@ -13,6 +13,7 @@ var dragging := false
 var drag_start := Vector2.ZERO
 var current_tool := Tool.POINTER
 var relocate_target = null
+var _redraw_frame := 0
 
 const TILE_PX := 32
 const AGENT_RADIUS := 4
@@ -25,7 +26,9 @@ func _ready() -> void:
 	$HUD/ToolPalette/RelocateBtn.pressed.connect(func(): current_tool = Tool.RELOCATE; hide_popup(); relocate_target = null)
 
 func _process(_delta: float) -> void:
-	queue_redraw()
+	_redraw_frame += 1
+	if _redraw_frame % 2 == 0:
+		queue_redraw()
 	update_hud()
 
 func _draw() -> void:

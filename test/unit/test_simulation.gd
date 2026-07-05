@@ -5,7 +5,7 @@ func test_world_init() -> void:
 	sim.init_world()
 	assert(sim.grid.size() == 30, "grid width 30")
 	assert(sim.grid[0].size() == 30, "grid height 30")
-	assert(sim.agents.size() == 12, "12 agents spawned")
+	assert(sim.agents.size() == 30, "30 agents spawned")
 
 func test_fragment_regen() -> void:
 	var sim = preload("res://simulation/simulation.gd").new()
