@@ -1,4 +1,4 @@
-[gd_scene load_steps=3 format=3 uid="uid://cebo7b1pbl6hy"]
+[gd_scene load_steps=4 format=3 uid="uid://cebo7b1pbl6hy"]
 
 [ext_resource type="Script" path="res://main.gd" id="1"]
 [ext_resource type="Script" path="res://simulation/simulation.gd" id="2"]
@@ -6,8 +6,8 @@
 [sub_resource type="StyleBoxFlat" id="1"]
 bg_color = Color(0.05, 0.05, 0.1, 0.92)
 border_width_left = 1
-border_width_right = 1
 border_width_top = 1
+border_width_right = 1
 border_width_bottom = 1
 border_color = Color(0.5, 0.5, 0.5, 1)
 
@@ -36,66 +36,61 @@ offset_right = 400.0
 offset_bottom = 200.0
 
 [node name="ToolPalette" type="HBoxContainer" parent="HUD"]
-layout_mode = 3
-anchors_preset = 15
+anchors_preset = 7
 anchor_left = 0.5
 anchor_top = 1.0
 anchor_right = 0.5
 anchor_bottom = 1.0
-offset_left = -220.0
-offset_top = -44.0
-offset_right = 220.0
+offset_left = -320.0
+offset_top = -56.0
+offset_right = 320.0
 offset_bottom = -4.0
 grow_horizontal = 2
+grow_vertical = 2
 theme_override_constants/separation = 4
 
 [node name="PointerBtn" type="Button" parent="HUD/ToolPalette"]
+custom_minimum_size = Vector2(120, 52)
 layout_mode = 2
 size_flags_horizontal = 6
-custom_minimum_size = Vector2(80, 36)
 text = "Inspect"
 
 [node name="TerrainBtn" type="Button" parent="HUD/ToolPalette"]
+custom_minimum_size = Vector2(120, 52)
 layout_mode = 2
 size_flags_horizontal = 6
-custom_minimum_size = Vector2(80, 36)
 text = "Terrain"
 
 [node name="ImpulseBtn" type="Button" parent="HUD/ToolPalette"]
+custom_minimum_size = Vector2(120, 52)
 layout_mode = 2
 size_flags_horizontal = 6
-custom_minimum_size = Vector2(80, 36)
 text = "Impulse"
 
 [node name="BreedBtn" type="Button" parent="HUD/ToolPalette"]
+custom_minimum_size = Vector2(120, 52)
 layout_mode = 2
 size_flags_horizontal = 6
-custom_minimum_size = Vector2(80, 36)
 text = "Breed"
 
 [node name="RelocateBtn" type="Button" parent="HUD/ToolPalette"]
+custom_minimum_size = Vector2(120, 52)
 layout_mode = 2
 size_flags_horizontal = 6
-custom_minimum_size = Vector2(80, 36)
 text = "Relocate"
 
 [node name="InspectPopup" type="Panel" parent="HUD"]
-layout_mode = 3
-anchors_preset = 0
+visible = false
+anchors_preset = -1
 anchor_left = 0.35
 anchor_top = 0.15
 anchor_right = 0.65
 anchor_bottom = 0.5
-offset_left = 0.0
-offset_top = 0.0
-offset_right = 0.0
-offset_bottom = 0.0
-visible = false
-theme_override_styles/panel = SubResource(1)
+theme_override_styles/panel = SubResource("1")
 
 [node name="InspectLabel" type="RichTextLabel" parent="HUD/InspectPopup"]
 layout_mode = 1
-anchors_preset = 15
+anchors_preset = 3
 anchor_left = 1.0
 anchor_top = 1.0
 anchor_right = 1.0
@@ -104,6 +99,8 @@ offset_left = 8.0
 offset_top = 8.0
 offset_right = -8.0
 offset_bottom = -8.0
+grow_horizontal = 2
+grow_vertical = 2
 theme_override_colors/default_color = Color(1, 1, 1, 1)
 theme_override_font_sizes/normal_font_size = 12
 bbcode_enabled = true
