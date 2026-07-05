@@ -1,0 +1,260 @@
+extends Node
+class_name Simulation
+
+enum TileType { RAVNINA, TRYASINA, VOZVYSHENNOST, RAZLOM }
+
+const DNA_SCRIPT = preload("res://simulation/dna.gd")
+
+class AgentData:
+	var id: int
+	var x: int
+	var y: int
+	var energy: float
+	var max_energy: float
+	var health: float
+	var max_health: float
+	var age: int
+	var dna: Resource
+	var cooldown: int
+
+var grid_size := 30
+var grid: Array
+var agents: Array[AgentData]
+var tick_count := 0
+var running := true
+var next_id := 0
+
+const TILE_COLORS := {
+	TileType.RAVNINA: Color(0.5, 0.75, 0.5),
+	TileType.TRYASINA: Color(0.3, 0.5, 0.3),
+	TileType.VOZVYSHENNOST: Color(0.7, 0.6, 0.4),
+	TileType.RAZLOM: Color(0.2, 0.2, 0.2),
+}
+
+const FRAGMENT_REGEN_BASE := 0.1
+const ENERGY_PER_FRAGMENT := 10.0
+const MOVE_COST := 0.5
+const ATTACK_COST := 2.0
+const EVADE_COST := 1.0
+const REPRODUCE_COST := 30.0
+const IDLE_COST := 0.1
+const COOLDOWN_TICKS := 5
+
+func random_dna():
+	var d = DNA_SCRIPT.new()
+	for i in 5: d.sensor_weights[i] = randf()
+	for i in 3: d.thresholds[i] = randf()
+	for i in 6: d.action_priorities[i] = randf()
+	for i in 4: d.params[i] = randf()
+	return d
+
+func _ready() -> void:
+	init_world()
+
+func init_world() -> void:
+	grid = []
+	for x in grid_size:
+		grid.append([])
+		for y in grid_size:
+			var t = TileType.RAVNINA
+			var r = randf()
+			if r < 0.1: t = TileType.TRYASINA
+			elif r < 0.15: t = TileType.VOZVYSHENNOST
+			elif r < 0.18: t = TileType.RAZLOM
+			grid[x].append({
+				type = t,
+				fragments = randi() % 4 + 1,
+			})
+	agents = []
+	for i in 12:
+		spawn_agent()
+
+func spawn_agent() -> void:
+	var a = AgentData.new()
+	a.id = next_id; next_id += 1
+	a.x = randi() % grid_size
+	a.y = randi() % grid_size
+	a.energy = 50.0
+	a.max_energy = 100.0
+	a.health = 100.0
+	a.max_health = 100.0
+	a.age = 0
+	a.dna = random_dna()
+	a.cooldown = 0
+	agents.append(a)
+
+func _process(_delta: float) -> void:
+	if not running: return
+	tick()
+
+func tick() -> void:
+	tick_count += 1
+	regen_fragments()
+	process_agents()
+	cleanup_dead()
+
+func regen_fragments() -> void:
+	for x in grid_size:
+		for y in grid_size:
+			var cell = grid[x][y]
+			if cell.type == TileType.RAZLOM: continue
+			var rate = FRAGMENT_REGEN_BASE
+			if cell.type == TileType.TRYASINA: rate *= 2
+			if randf() < rate:
+				cell.fragments = min(cell.fragments + 1, 5)
+
+func process_agents() -> void:
+	for a in agents:
+		if a.energy <= 0 or a.health <= 0: continue
+		a.age += 1
+		if a.cooldown > 0: a.cooldown -= 1
+		decide_action(a)
+
+func decide_action(a: AgentData) -> void:
+	var w = a.dna.sensor_weights
+	var d = a.dna.action_priorities
+
+	var nearest_fragment_dist = sense_nearest_fragment(a)
+	var nearest_agent_dist = sense_nearest_agent(a)
+	var energy_ratio = a.energy / a.max_energy
+
+	var move_w = d[0] * w[0]
+	var collect_w = d[1] * w[0] * (1.0 if nearest_fragment_dist < 1.5 else 0.1)
+	var idle_w = d[2] * 0.5
+	var reproduce_w = d[3] * (1.0 if energy_ratio > a.dna.thresholds[1] else 0.0)
+	var attack_w = d[4] * (1.0 if nearest_agent_dist < 1.5 and energy_ratio > 0.5 else 0.0)
+	var evade_w = d[5] * (1.0 if nearest_agent_dist < 2.0 and energy_ratio < a.dna.thresholds[2] else 0.0)
+
+	var actions = [
+		[move_w, 0], [collect_w, 1], [idle_w, 2],
+		[reproduce_w, 3], [attack_w, 4], [evade_w, 5]
+	]
+	actions.sort_custom(func(a, b): return a[0] > b[0])
+	var chosen = actions[0][1]
+
+	match chosen:
+		0: do_move(a)
+		1: do_collect(a)
+		2: do_idle(a)
+		3: do_reproduce(a)
+		4: do_attack(a)
+		5: do_evade(a)
+
+func sense_nearest_fragment(a: AgentData) -> float:
+	var best := 999.0
+	for dx in range(-3, 4):
+		for dy in range(-3, 4):
+			var nx = a.x + dx; var ny = a.y + dy
+			if nx < 0 or nx >= grid_size or ny < 0 or ny >= grid_size: continue
+			if grid[nx][ny].fragments > 0:
+				var d = sqrt(dx*dx + dy*dy)
+				if d < best: best = d
+	return best
+
+func sense_nearest_agent(a: AgentData) -> float:
+	var best := 999.0
+	for other in agents:
+		if other.id == a.id: continue
+		if other.energy <= 0: continue
+		var d = sqrt(pow(other.x - a.x, 2) + pow(other.y - a.y, 2))
+		if d < best: best = d
+	return best
+
+func do_move(a: AgentData) -> void:
+	var best_dir = Vector2i(0, 0)
+	var best_dist := 999.0
+	for dx in range(-1, 2):
+		for dy in range(-1, 2):
+			if dx == 0 and dy == 0: continue
+			var nx = a.x + dx; var ny = a.y + dy
+			if nx < 0 or nx >= grid_size or ny < 0 or ny >= grid_size: continue
+			if grid[nx][ny].type == TileType.RAZLOM: continue
+			if grid[nx][ny].fragments > 0:
+				var d = sqrt(dx*dx + dy*dy)
+				if d < best_dist:
+					best_dist = d
+					best_dir = Vector2i(dx, dy)
+	if best_dir != Vector2i.ZERO:
+		a.x += best_dir.x
+		a.y += best_dir.y
+		var speed = a.dna.params[1]
+		var terrain_cost = 1.0
+		if grid[a.x][a.y].type == TileType.TRYASINA: terrain_cost = 2.0
+		if grid[a.x][a.y].type == TileType.VOZVYSHENNOST: terrain_cost = 1.2
+		a.energy -= MOVE_COST * terrain_cost / max(speed, 0.1)
+
+func do_collect(a: AgentData) -> void:
+	var cell = grid[a.x][a.y]
+	if cell.fragments > 0:
+		var eff = a.dna.params[0]
+		var amount = ENERGY_PER_FRAGMENT * eff
+		a.energy = min(a.energy + amount, a.max_energy)
+		cell.fragments -= 1
+
+func do_idle(a: AgentData) -> void:
+	a.energy -= IDLE_COST
+
+func do_reproduce(a: AgentData) -> void:
+	if a.cooldown > 0: return
+	var partner: AgentData = null
+	for other in agents:
+		if other.id == a.id: continue
+		if other.energy <= 0: continue
+		var d = sqrt(pow(other.x - a.x, 2) + pow(other.y - a.y, 2))
+		if d < 2.0 and other.energy > REPRODUCE_COST:
+			partner = other; break
+	if partner == null: return
+
+	var child = AgentData.new()
+	child.id = next_id; next_id += 1
+	child.x = a.x + randi() % 3 - 1
+	child.y = a.y + randi() % 3 - 1
+	child.x = clampi(child.x, 0, grid_size - 1)
+	child.y = clampi(child.y, 0, grid_size - 1)
+	child.energy = 30.0
+	child.max_energy = 100.0
+	child.health = a.health * 0.7 + partner.health * 0.3
+	child.max_health = 100.0
+	child.age = 0
+	child.dna = a.dna.crossover(partner.dna)
+	child.cooldown = COOLDOWN_TICKS
+	agents.append(child)
+
+	a.energy -= REPRODUCE_COST * 0.5
+	partner.energy -= REPRODUCE_COST * 0.5
+	a.cooldown = COOLDOWN_TICKS
+	partner.cooldown = COOLDOWN_TICKS
+
+func do_attack(a: AgentData) -> void:
+	for other in agents:
+		if other.id == a.id: continue
+		if other.energy <= 0: continue
+		var d = sqrt(pow(other.x - a.x, 2) + pow(other.y - a.y, 2))
+		if d < 1.5:
+			other.health -= 20.0
+			a.energy -= ATTACK_COST
+			return
+
+func do_evade(a: AgentData) -> void:
+	var dirs = [Vector2i(1,0), Vector2i(-1,0), Vector2i(0,1), Vector2i(0,-1)]
+	dirs.shuffle()
+	for d in dirs:
+		var nx = a.x + d.x; var ny = a.y + d.y
+		if nx < 0 or nx >= grid_size or ny < 0 or ny >= grid_size: continue
+		if grid[nx][ny].type == TileType.RAZLOM: continue
+		var danger := false
+		for other in agents:
+			if other.id == a.id: continue
+			if other.energy <= 0: continue
+			if abs(other.x - nx) <= 1 and abs(other.y - ny) <= 1: danger = true; break
+		if not danger:
+			a.x = nx; a.y = ny
+			a.energy -= EVADE_COST
+			return
+
+func cleanup_dead() -> void:
+	var alive: Array[AgentData] = []
+	for a in agents:
+		if a.energy > 0 and a.health > 0:
+			alive.append(a)
+	agents = alive
