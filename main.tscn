@@ -3,6 +3,14 @@
 [ext_resource type="Script" path="res://main.gd" id="1"]
 [ext_resource type="Script" path="res://simulation/simulation.gd" id="2"]
 
+[sub_resource type="StyleBoxFlat" id="1"]
+bg_color = Color(0.05, 0.05, 0.1, 0.92)
+border_width_left = 1
+border_width_right = 1
+border_width_top = 1
+border_width_bottom = 1
+border_color = Color(0.5, 0.5, 0.5, 1)
+
 [node name="Main" type="Node2D"]
 script = ExtResource("1")
 
@@ -26,3 +34,60 @@ offset_left = 8.0
 offset_top = 40.0
 offset_right = 400.0
 offset_bottom = 200.0
+
+[node name="ToolPalette" type="HBoxContainer" parent="HUD"]
+layout_mode = 0
+offset_left = 100.0
+offset_top = 680.0
+offset_right = 600.0
+offset_bottom = 720.0
+theme_override_constants/separation = 4
+
+[node name="PointerBtn" type="Button" parent="HUD/ToolPalette"]
+layout_mode = 2
+size_flags_horizontal = 6
+custom_minimum_size = Vector2(80, 36)
+text = "Inspect"
+
+[node name="TerrainBtn" type="Button" parent="HUD/ToolPalette"]
+layout_mode = 2
+size_flags_horizontal = 6
+custom_minimum_size = Vector2(80, 36)
+text = "Terrain"
+
+[node name="ImpulseBtn" type="Button" parent="HUD/ToolPalette"]
+layout_mode = 2
+size_flags_horizontal = 6
+custom_minimum_size = Vector2(80, 36)
+text = "Impulse"
+
+[node name="BreedBtn" type="Button" parent="HUD/ToolPalette"]
+layout_mode = 2
+size_flags_horizontal = 6
+custom_minimum_size = Vector2(80, 36)
+text = "Breed"
+
+[node name="RelocateBtn" type="Button" parent="HUD/ToolPalette"]
+layout_mode = 2
+size_flags_horizontal = 6
+custom_minimum_size = Vector2(80, 36)
+text = "Relocate"
+
+[node name="InspectPopup" type="Panel" parent="HUD"]
+layout_mode = 0
+offset_left = 800.0
+offset_top = 60.0
+offset_right = 1180.0
+offset_bottom = 360.0
+visible = false
+theme_override_styles/panel = SubResource(1)
+
+[node name="InspectLabel" type="RichTextLabel" parent="HUD/InspectPopup"]
+layout_mode = 0
+offset_left = 8
+offset_top = 8
+offset_right = 372
+offset_bottom = 292
+theme_override_colors/default_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/normal_font_size = 12
+bbcode_enabled = true

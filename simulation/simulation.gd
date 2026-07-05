@@ -16,6 +16,7 @@ class AgentData:
 	var age: int
 	var dna: Resource
 	var cooldown: int
+	var breeding_boost: float
 
 var grid_size := 30
 var grid: Array
@@ -64,6 +65,7 @@ func init_world() -> void:
 			grid[x].append({
 				type = t,
 				fragments = randi() % 4 + 1,
+				regen_boost = 0.0,
 			})
 	agents = []
 	for i in 12:
@@ -81,6 +83,7 @@ func spawn_agent() -> void:
 	a.age = 0
 	a.dna = random_dna()
 	a.cooldown = 0
+	a.breeding_boost = 1.0
 	agents.append(a)
 
 func _process(_delta: float) -> void:
@@ -98,16 +101,19 @@ func regen_fragments() -> void:
 		for y in grid_size:
 			var cell = grid[x][y]
 			if cell.type == TileType.RAZLOM: continue
-			var rate = FRAGMENT_REGEN_BASE
+			var rate = FRAGMENT_REGEN_BASE + cell.regen_boost
 			if cell.type == TileType.TRYASINA: rate *= 2
 			if randf() < rate:
 				cell.fragments = min(cell.fragments + 1, 5)
+			if cell.regen_boost > 0.0:
+				cell.regen_boost = max(0.0, cell.regen_boost - 0.05)
 
 func process_agents() -> void:
 	for a in agents:
 		if a.energy <= 0 or a.health <= 0: continue
 		a.age += 1
 		if a.cooldown > 0: a.cooldown -= 1
+		a.breeding_boost = max(1.0, a.breeding_boost - 0.1)
 		decide_action(a)
 
 func decide_action(a: AgentData) -> void:
@@ -210,11 +216,12 @@ func do_idle(a: AgentData) -> void:
 func do_reproduce(a: AgentData) -> void:
 	if a.cooldown > 0: return
 	var partner: AgentData = null
+	var repro_threshold = REPRODUCE_COST / max(a.breeding_boost, 0.1)
 	for other in agents:
 		if other.id == a.id: continue
 		if other.energy <= 0: continue
 		var d = sqrt(pow(other.x - a.x, 2) + pow(other.y - a.y, 2))
-		if d < 2.0 and other.energy > REPRODUCE_COST:
+		if d < 2.0 and other.energy > repro_threshold:
 			partner = other; break
 	if partner == null: return
 
@@ -271,3 +278,20 @@ func cleanup_dead() -> void:
 		if a.energy > 0 and a.health > 0:
 			alive.append(a)
 	agents = alive
+
+func trigger_impulse(cx: int, cy: int, radius: int = 3) -> void:
+	for x in range(max(0, cx - radius), min(grid_size, cx + radius + 1)):
+		for y in range(max(0, cy - radius), min(grid_size, cy + radius + 1)):
+			var d = sqrt(pow(x - cx, 2) + pow(y - cy, 2))
+			if d <= radius:
+				grid[x][y].regen_boost = 0.5
+
+func boost_breeding(a: AgentData) -> void:
+	a.breeding_boost = 5.0
+
+func relocate_agent(a: AgentData, nx: int, ny: int) -> void:
+	nx = clampi(nx, 0, grid_size - 1)
+	ny = clampi(ny, 0, grid_size - 1)
+	if grid[nx][ny].type != TileType.RAZLOM:
+		a.x = nx
+		a.y = ny
