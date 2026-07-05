@@ -5,6 +5,9 @@ on:
     branches: [main]
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 env:
   GODOT_VERSION: 4.3
   EXPORT_NAME: EvoCraft
@@ -36,10 +39,8 @@ jobs:
         with:
           name: web
           path: build/web
-      - name: Install rsync
-        run: apt-get update && apt-get install -y rsync
       - name: Deploy to GitHub Pages
-        uses: JamesIves/github-pages-deploy-action@v4
+        uses: peaceiris/actions-gh-pages@v4
         with:
-          branch: gh-pages
-          folder: build/web
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: build/web
