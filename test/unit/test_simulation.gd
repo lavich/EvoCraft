@@ -37,6 +37,23 @@ func test_tick_runs() -> void:
 	sim.tick()
 	assert(sim.tick_count == prev_count + 1, "tick increments")
 
+func test_agents_move() -> void:
+	var sim = preload("res://simulation/simulation.gd").new()
+	sim.init_world()
+	var initial_by_id = {}
+	for a in sim.agents:
+		initial_by_id[a.id] = Vector2i(a.x, a.y)
+	for i in 100:
+		sim.tick()
+	var moved = false
+	for a in sim.agents:
+		if a.energy > 0 and a.id in initial_by_id:
+			var pos = Vector2i(a.x, a.y)
+			if pos != initial_by_id[a.id]:
+				moved = true
+				break
+	assert(moved, "at least one agent moved after 100 ticks")
+
 func test_death_and_reproduction() -> void:
 	var sim = preload("res://simulation/simulation.gd").new()
 	sim.init_world()
@@ -54,5 +71,6 @@ func run_all() -> void:
 	test_fragment_regen()
 	test_agent_spawn()
 	test_tick_runs()
+	test_agents_move()
 	test_death_and_reproduction()
 	print("All simulation tests passed!")

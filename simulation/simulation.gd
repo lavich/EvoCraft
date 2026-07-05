@@ -17,6 +17,7 @@ class AgentData:
 	var dna: Resource
 	var cooldown: int
 	var breeding_boost: float
+	var move_cooldown: int
 
 var grid_size := 30
 var grid: Array
@@ -32,13 +33,13 @@ const TILE_COLORS := {
 	TileType.RAZLOM: Color(0.2, 0.2, 0.2),
 }
 
-const FRAGMENT_REGEN_BASE := 0.1
-const ENERGY_PER_FRAGMENT := 10.0
-const MOVE_COST := 0.5
+const FRAGMENT_REGEN_BASE := 0.03
+const ENERGY_PER_FRAGMENT := 12.0
+const MOVE_COST := 0.3
 const ATTACK_COST := 2.0
 const EVADE_COST := 1.0
 const REPRODUCE_COST := 30.0
-const IDLE_COST := 0.1
+const IDLE_COST := 0.5
 const COOLDOWN_TICKS := 5
 
 func random_dna():
@@ -46,10 +47,12 @@ func random_dna():
 	for i in 5: d.sensor_weights[i] = randf()
 	for i in 3: d.thresholds[i] = randf()
 	for i in 6: d.action_priorities[i] = randf()
+	d.action_priorities[0] = max(d.action_priorities[0], 0.3)
 	for i in 4: d.params[i] = randf()
 	return d
 
 func _ready() -> void:
+	randomize()
 	init_world()
 
 func init_world() -> void:
@@ -68,7 +71,7 @@ func init_world() -> void:
 				regen_boost = 0.0,
 			})
 	agents = []
-	for i in 12:
+	for i in 30:
 		spawn_agent()
 
 func spawn_agent() -> void:
@@ -84,6 +87,7 @@ func spawn_agent() -> void:
 	a.dna = random_dna()
 	a.cooldown = 0
 	a.breeding_boost = 1.0
+	a.move_cooldown = randi() % 60
 	agents.append(a)
 
 func _process(_delta: float) -> void:
@@ -113,6 +117,7 @@ func process_agents() -> void:
 		if a.energy <= 0 or a.health <= 0: continue
 		a.age += 1
 		if a.cooldown > 0: a.cooldown -= 1
+		if a.move_cooldown > 0: a.move_cooldown -= 1
 		a.breeding_boost = max(1.0, a.breeding_boost - 0.1)
 		decide_action(a)
 
@@ -128,7 +133,7 @@ func decide_action(a: AgentData) -> void:
 	# Each action uses sensor weights that are relevant to it:
 	# w[0] = fragment dist  |  w[1] = agent dist  |  w[2] = energy level
 	# w[3] = direction to cluster  |  w[4] = agent density
-	var move_w = p[0] * (w[0] + w[3]) * 0.5
+	var move_w = 0.0 if a.move_cooldown > 0 else p[0] * (w[0] + w[3]) * 0.5 + 0.15
 	var collect_w = p[1] * w[0] * (1.0 if nearest_fragment_dist < 1.5 else 0.1)
 	var idle_w = p[2] * (1.0 - w[2])
 	var reproduce_w = p[3] * w[2] * (1.0 if energy_ratio > t[1] else 0.0)
@@ -141,6 +146,8 @@ func decide_action(a: AgentData) -> void:
 	]
 	actions.sort_custom(func(a, b): return a[0] > b[0])
 	var chosen = actions[0][1]
+	if a.move_cooldown == 1:
+		chosen = 0
 
 	match chosen:
 		0: do_move(a)
@@ -196,6 +203,7 @@ func do_move(a: AgentData) -> void:
 	if best_dir != Vector2i.ZERO:
 		a.x += best_dir.x
 		a.y += best_dir.y
+		a.move_cooldown = 60
 		var speed = a.dna.params[1]
 		var terrain_cost = 1.0
 		if grid[a.x][a.y].type == TileType.TRYASINA: terrain_cost = 2.0
