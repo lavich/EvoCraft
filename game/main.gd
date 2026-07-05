@@ -8,7 +8,7 @@ var offset := Vector2.ZERO
 var dragging := false
 var drag_start := Vector2.ZERO
 
-const TILE_PX := 16
+const TILE_PX := 32
 const AGENT_RADIUS := 4
 const TILE_COLORS := {
 	0: Color(0.5, 0.75, 0.5),
