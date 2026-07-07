@@ -25,6 +25,8 @@ var agents: Array[AgentData]
 var tick_count := 0
 var running := true
 var next_id := 0
+const TICKS_PER_SECOND := 60
+var _regen_cooldown := 0
 
 var _agent_buckets: Dictionary
 const BUCKET_SIZE := 5
@@ -101,7 +103,11 @@ func _process(_delta: float) -> void:
 
 func tick() -> void:
 	tick_count += 1
-	regen_fragments()
+	if _regen_cooldown <= 0:
+		regen_fragments()
+		_regen_cooldown = TICKS_PER_SECOND / 3
+	else:
+		_regen_cooldown -= 1
 	process_agents()
 	cleanup_dead()
 
@@ -113,6 +119,16 @@ func regen_fragments() -> void:
 			if cell.regen_delay > 0:
 				cell.regen_delay -= 1
 				continue
+			var neighbors := 0
+			for dx in [-1, 0, 1]:
+				for dy in [-1, 0, 1]:
+					if dx == 0 and dy == 0: continue
+					var nx: int = x + dx
+					var ny: int = y + dy
+					if nx < 0 or nx >= grid_size or ny < 0 or ny >= grid_size: continue
+					if grid[nx][ny].fragments > 0:
+						neighbors += 1
+			if neighbors < 1: continue
 			var rate = FRAGMENT_REGEN_BASE + cell.regen_boost
 			if cell.type == TileType.TRYASINA: rate *= 2
 			if randf() < rate:
